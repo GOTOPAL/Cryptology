@@ -1,0 +1,45 @@
+:root {
+  --bg: #0b1020;
+  --panel: #121a2f;
+  --text: #e9f1ff;
+  --muted: #9bb0d3;
+  --accent: #5aa0ff;
+  --ok: #29cc7a;
+  --err: #ff5678;
+}
+* { box-sizing: border-box; }
+body {
+  background: radial-gradient(1200px 800px at top left, #0f1b3b 0%, var(--bg) 40%, #080c18 100%);
+  color: var(--text);
+  font: 15px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu;
+  margin: 0; padding: 24px;
+}
+.container { max-width: 960px; margin: 0 auto; }
+
+h1 { font-size: 24px; font-weight: 700; margin: 0 0 16px; }
+h1 small { font-weight: 400; color: var(--muted); }
+.panel { background: var(--panel); border-radius: 16px; padding: 16px; margin-bottom: 16px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+label { display: flex; flex-direction: column; gap: 6px; color: var(--muted); }
+input, select { background: #0c1426; color: var(--text); border: 1px solid #1e2b4e; border-radius: 10px; padding: 10px; outline: none; }
+input:focus, select:focus { border-color: var(--accent); }
+
+.status { display: flex; gap: 18px; align-items: end; padding-bottom: 6px; }
+#ws-status.connected { color: var(--ok); }
+#ws-status.disconnected { color: var(--err); }
+#e2ee-status.ready { color: var(--ok); }
+#e2ee-status.notready { color: var(--err); }
+
+.actions { margin-top: 10px; display: flex; gap: 8px; }
+button { background: var(--accent); color: white; border: none; border-radius: 10px; padding: 10px 14px; cursor: pointer; }
+button[disabled] { opacity: .5; cursor: not-allowed; }
+
+.messages { height: 320px; overflow: auto; background: #0a1121; border: 1px solid #1b2749; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.msg { display: grid; grid-template-columns: 120px 1fr; gap: 8px; }
+.msg .from { color: var(--muted); text-align: right; padding-top: 2px; }
+.msg .bubble { background: #0f1b3b; border: 1px solid #20315e; border-radius: 12px; padding: 8px 10px; white-space: pre-wrap; word-break: break-word; }
+.msg.you .from { color: #7fb8ff; }
+.msg.system .bubble { background: #11203b; color: #a6c2ff; font-style: italic; }
+
+.compose { margin-top: 10px; display: grid; grid-template-columns: 1fr 120px; gap: 8px; }

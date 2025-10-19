@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WS E2EE Chat (Caesar)</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>WS E2EE Chat <small>(Server relay, client-side şifreleme)</small></h1>
+
+    <section class="panel">
+      <h2>Bağlantı</h2>
+      <div class="grid">
+        <label>WS Sunucu URL
+          <input id="ws-url" value="ws://127.0.0.1:8765" />
+        </label>
+        <label>Oda
+          <input id="room" value="general" />
+        </label>
+        <label>Kullanıcı Adı
+          <input id="username" placeholder="adınız" />
+        </label>
+      </div>
+      <div class="grid">
+        <label>Algoritma
+          <select id="cipher-name">
+            <option value="caesar">Caesar (byte shift)</option>
+          </select>
+        </label>
+        <label>Paylaşılan Anahtar (Caesar için tamsayı kaydırma)
+          <input id="shared-key" type="number" value="3" />
+        </label>
+        <div class="status">
+          <div>WS: <span id="ws-status">kopuk</span></div>
+          <div>E2EE: <span id="e2ee-status">hazır değil</span></div>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="btn-connect">Bağlan</button>
+        <button id="btn-disconnect" disabled>Kes</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Mesajlaşma</h2>
+      <div id="messages" class="messages"></div>
+      <div class="compose">
+        <input id="msg-input" placeholder="Mesaj yazın..." />
+        <button id="btn-send" disabled>Gönder</button>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
