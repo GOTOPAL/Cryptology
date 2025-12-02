@@ -24,19 +24,21 @@
         </label>
       </div>
       <div class="grid">
-        <label>Algoritma
-          <select id="cipher-name">
-            <option value="caesar">Caesar (byte shift)</option>
-          </select>
-        </label>
-        <label>Paylaşılan Anahtar (Caesar için tamsayı kaydırma)
-          <input id="shared-key" type="number" value="3" />
-        </label>
-        <div class="status">
-          <div>WS: <span id="ws-status">kopuk</span></div>
-          <div>E2EE: <span id="e2ee-status">hazır değil</span></div>
-        </div>
-      </div>
+  <label>Algoritma
+    <select id="cipher-name">
+      <option value="caesar">Caesar (byte shift)</option>
+      <option value="vigenere">Vigenere (keyword)</option> </select>
+  </label>
+  
+  <label>Paylaşılan Anahtar (Caesar için sayı, Vigenere için kelime)
+    <input id="shared-key" type="text" value="gizli" /> 
+  </label>
+  
+  <div class="status">
+    <div>WS: <span id="ws-status">kopuk</span></div>
+    <div>E2EE: <span id="e2ee-status">hazır değil</span></div>
+  </div>
+</div>
       <div class="actions">
         <button id="btn-connect">Bağlan</button>
         <button id="btn-disconnect" disabled>Kes</button>
