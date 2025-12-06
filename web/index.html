@@ -25,14 +25,15 @@
       </div>
       <div class="grid">
   <label>Algoritma
-    <select id="cipher-name">
-      <option value="caesar">Caesar (byte shift)</option>
-      <option value="vigenere">Vigenere (keyword)</option> </select>
-  </label>
-  
-  <label>Paylaşılan Anahtar (Caesar için sayı, Vigenere için kelime)
-    <input id="shared-key" type="text" value="gizli" /> 
-  </label>
+  <select id="cipher-name">
+    <option value="caesar">Caesar (Byte Shift)</option>
+    <option value="vigenere">Vigenere (Keyword)</option>
+    <option value="rotate">Rota (Bitwise Rotate)</option> </select>
+</label>
+
+<label>Paylaşılan Anahtar
+  <input id="shared-key" type="text" value="3" placeholder="Sayı veya Kelime" />
+</label>
   
   <div class="status">
     <div>WS: <span id="ws-status">kopuk</span></div>

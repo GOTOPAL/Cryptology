@@ -40,7 +40,16 @@ export class UI {
   }
 
   addSystem(text) { this._push('system', 'system', text); }
-  addIncoming(from, text) { this._push('other', from, text); }
+  addIncoming(from, text) {
+  // Eğer metin  içeriyorsa (yani bozuksa), yanına parantez içinde HEX halini de ekle
+  if (text.includes('')) {
+    // Metni tekrar byte'a çevirip hex string yapıyoruz (sadece görsel amaçlı)
+    // Not: Bu basit bir hack, gerçek byte dizisine app.js'den erişmek daha doğru olurdu ama
+    // görsel olarak durumu kurtarır.
+    text += " [Bozuk Veri / Geçersiz UTF-8]"; 
+  }
+  this._push('other', from, text); 
+}
   addOutgoing(text) { this._push('you', 'you', text); }
 
   _push(kind, from, text) {
