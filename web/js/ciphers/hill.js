@@ -1,100 +1,106 @@
 import { BaseCipher } from './base.js';
 
-// Yardımcı fonksiyon: Modüler Tersi Bulma (Extended Euclidean Algorithm)
-function modInverse(a, m) {
-  let [m0, x, y] = [m, 1, 0];
-  if (m === 1) return 0;
-  a = ((a % m) + m) % m;
-  while (a > 1) {
-    const q = Math.floor(a / m);
-    [a, m] = [m, a % m];
-    [x, y] = [y, x - q * y];
-  }
-  if (x < 0) x += m0;
-  return x;
+// JavaScript'in negatif sayı hatasını düzelten Modulo fonksiyonu
+// mod(-3, 256) -> 253 verir.
+const mod = (n, m) => ((n % m) + m) % m;
+
+// 256 gibi küçük sayılar için en güvenli Ters Alma (Inverse) yöntemi (Brute Force)
+function findModInverse(a, m) {
+    a = mod(a, m);
+    for (let x = 1; x < m; x++) {
+        if (mod(a * x, m) === 1) return x;
+    }
+    throw new Error(`Determinantın (${a}) tersi yok, bu matris kullanılamaz.`);
 }
 
-// Yardımcı fonksiyon: En büyük ortak bölen
+// En büyük ortak bölen
 function gcd(a, b) {
-  return b === 0 ? a : gcd(b, a % b);
+    return b === 0 ? a : gcd(b, a % b);
 }
 
 export class HillCipher extends BaseCipher {
-  /** @param {string} keyStr - Örn: "3 3 2 5" (4 sayı) */
-  constructor(keyStr) {
-    super(keyStr);
-    
-    // Anahtarı boşluklara göre bölüp sayıya çevirelim
-    const nums = keyStr.trim().split(/\s+/).map(Number);
-    
-    if (nums.length !== 4) {
-      throw new Error("Hill (2x2) için 4 adet sayı girmelisiniz. Örn: '3 3 2 5'");
+    constructor(keyStr) {
+        super(keyStr);
+        
+        // Anahtarı parse et
+        const nums = keyStr.trim().split(/\s+/).map(Number);
+        if (nums.length !== 4) {
+            throw new Error("Hill (2x2) için 4 sayı gerekli. Örn: '3 3 2 5'");
+        }
+
+        // Şifreleme Matrisi: [a b / c d]
+        this.keyMatrix = nums; 
+        const [a, b, c, d] = this.keyMatrix;
+
+        // 1. Determinant Hesapla (ad - bc)
+        // JavaScript hatasını önlemek için 'mod' fonksiyonunu kullanıyoruz
+        const det = mod((a * d) - (b * c), 256);
+
+        // 2. Determinant geçerli mi? (Tek sayı olmalı)
+        if (gcd(det, 256) !== 1) {
+            throw new Error(`Matris geçersiz! Det=${det}. Lütfen determinantı tek sayı olan (3 3 2 5 gibi) bir anahtar girin.`);
+        }
+
+        // 3. Determinantın Tersi
+        const detInv = findModInverse(det, 256);
+
+        // 4. Ters Matris (Deşifreleme Matrisi)
+        // Formül: detInv * [d  -b]
+        //                  [-c  a]
+        this.invMatrix = [
+            mod(d * detInv, 256),
+            mod(-b * detInv, 256),
+            mod(-c * detInv, 256),
+            mod(a * detInv, 256)
+        ];
+
+        // Debug için konsola bas (F12'de görebilirsin)
+        console.log(`Hill Init -> Key: [${this.keyMatrix}], Inverse: [${this.invMatrix}], Det: ${det}, DetInv: ${detInv}`);
     }
 
-    // Şifreleme Matrisi [a b / c d]
-    this.keyMatrix = nums; // [a, b, c, d]
-    const [a, b, c, d] = this.keyMatrix;
+    process(data, matrix, isDecrypting) {
+        let input = data;
+        
+        // Şifrelerken: Uzunluk tek ise sonuna boşluk ekle (Padding)
+        if (!isDecrypting && data.length % 2 !== 0) {
+            const padded = new Uint8Array(data.length + 1);
+            padded.set(data);
+            padded[data.length] = 32; // Space (Boşluk)
+            input = padded;
+        }
 
-    // Determinant Hesapla: ad - bc
-    let det = (a * d - b * c) % 256;
-    if (det < 0) det += 256;
+        const len = input.length;
+        // Eğer veri tek sayıda gelirse (bozulmuşsa) sonuncuyu işlem dışı bırak
+        const processLen = (len % 2 === 0) ? len : len - 1;
 
-    // Matrisin tersi alınabilir mi? (Determinant ile 256 aralarında asal olmalı)
-    // 256 = 2^8 olduğu için, determinant sadece TEK sayı olmalı.
-    if (gcd(det, 256) !== 1) {
-      throw new Error(`Bu matris geçersiz (Determinant: ${det}). Lütfen determinantı tek sayı olan bir matris girin. (Örn: 3 3 2 5)`);
+        const out = new Uint8Array(len);
+        const [k0, k1, k2, k3] = matrix;
+
+        for (let i = 0; i < processLen; i += 2) {
+            const p1 = input[i];
+            const p2 = input[i+1];
+
+            // Matris çarpımı ve Modulo
+            out[i]   = mod((k0 * p1) + (k1 * p2), 256);
+            out[i+1] = mod((k2 * p1) + (k3 * p2), 256);
+        }
+        
+        // Şifre çözerken: Eğer sonda padding (boşluk) varsa temizle
+        if (isDecrypting && len > 0) {
+            const lastByte = out[len - 1];
+            if (lastByte === 32 || lastByte === 0) {
+                return out.slice(0, len - 1);
+            }
+        }
+
+        return out;
     }
 
-    // Deşifreleme (Inverse) Matrisini Hesapla
-    const detInv = modInverse(det, 256);
-    
-    // Ters Matris Formülü: detInv * [d -b / -c a]
-    this.invMatrix = [
-      (d * detInv) % 256,
-      (-b * detInv) % 256,
-      (-c * detInv) % 256,
-      (a * detInv) % 256
-    ].map(x => (x < 0 ? x + 256 : x)); // Negatifleri pozitife çevir
-  }
-
-  process(data, matrix) {
-    // Veriyi kopyala (orijinalini bozmayalım)
-    // Eğer uzunluk tek ise, padding (sonuna 0) eklememiz lazım çünkü 2'şerli işliyoruz
-    let len = data.length;
-    let input = data;
-    
-    // Blok boyutu 2 olduğu için tek sayıysa 1 byte ekle
-    if (len % 2 !== 0) {
-        const padded = new Uint8Array(len + 1);
-        padded.set(data);
-        padded[len] = 32; // Boşluk (padding)
-        input = padded;
-        len++;
+    encrypt(plaintext, counter=0) {
+        return this.process(plaintext, this.keyMatrix, false);
     }
 
-    const out = new Uint8Array(len);
-    const [k0, k1, k2, k3] = matrix;
-
-    for (let i = 0; i < len; i += 2) {
-      const p1 = input[i];
-      const p2 = input[i+1];
-
-      // Matris Çarpımı
-      // [k0 k1] * [p1]
-      // [k2 k3]   [p2]
-      out[i]   = (k0 * p1 + k1 * p2) % 256;
-      out[i+1] = (k2 * p1 + k3 * p2) % 256;
+    decrypt(ciphertext, counter=0) {
+        return this.process(ciphertext, this.invMatrix, true);
     }
-    
-    // Şifre çözerken padding'i atmak gerekir ama basitlik için bırakıyoruz.
-    return out; 
-  }
-
-  encrypt(plaintext, counter=0) {
-    return this.process(plaintext, this.keyMatrix);
-  }
-
-  decrypt(ciphertext, counter=0) {
-    return this.process(ciphertext, this.invMatrix);
-  }
 }
