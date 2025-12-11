@@ -24,17 +24,18 @@
         </label>
       </div>
       <div class="grid">
- <label>Algoritma
+<label>Algoritma
   <select id="cipher-name">
     <option value="caesar">Caesar</option>
     <option value="vigenere">Vigenere</option>
     <option value="rotate">Rota (Bitwise)</option>
     <option value="hill">Hill (Matris)</option>
-    <option value="columnar">Columnar (Transposition)</option> </select>
+    <option value="columnar">Columnar</option>
+    <option value="railfence">Rail Fence (Zig-Zag)</option> </select>
 </label>
 
 <label>Paylaşılan Anahtar
-  <input id="shared-key" type="text" value="HACK" placeholder="Kelime girin (Örn: HACK)" />
+  <input id="shared-key" type="text" value="3" placeholder="Anahtar (Sayı veya Metin)" />
 </label>
   
   <div class="status">
