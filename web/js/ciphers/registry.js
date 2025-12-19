@@ -6,6 +6,10 @@ import { ColumnarCipher } from './columnar.js';
 import { RailFenceCipher } from './railfence.js';
 import { PolybiusCipher } from './polybius.js'; 
 import { PigpenCipher } from './pigpen.js';
+import { DESLibCipher } from './des_lib.js';
+import { DESPureCipher } from './des_pure.js';
+
+
 export class CipherRegistry {
   constructor() { this.map = new Map(); }
   register(name, factory) { this.map.set(name, factory); }
@@ -26,3 +30,5 @@ registry.register('columnar', (key) => new ColumnarCipher(key));
 registry.register('railfence', (key) => new RailFenceCipher(key));
 registry.register('polybius', (key) => new PolybiusCipher(key));
 registry.register('pigpen', (key) => new PigpenCipher(key));
+registry.register('des_lib', (key) => new DESLibCipher(key));
+registry.register('des_pure', (key) => new DESPureCipher(key));
