@@ -8,7 +8,8 @@ import { PolybiusCipher } from './polybius.js';
 import { PigpenCipher } from './pigpen.js';
 import { DESLibCipher } from './des_lib.js';
 import { DESPureCipher } from './des_pure.js';
-
+import { AESLibCipher } from './aes_lib.js';
+import { AESPureCipher } from './aes_pure.js';
 
 export class CipherRegistry {
   constructor() { this.map = new Map(); }
@@ -32,3 +33,5 @@ registry.register('polybius', (key) => new PolybiusCipher(key));
 registry.register('pigpen', (key) => new PigpenCipher(key));
 registry.register('des_lib', (key) => new DESLibCipher(key));
 registry.register('des_pure', (key) => new DESPureCipher(key));
+registry.register('aes_lib', (key) => new AESLibCipher(key));
+registry.register('aes_pure', (key) => new AESPureCipher(key));
