@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="./css/styles.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.3.2/jsencrypt.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/elliptic/6.5.4/elliptic.min.js"></script>
 </head>
 <body>
   <div class="container">
@@ -58,6 +59,8 @@
       </div>
       <div style="margin-top: 10px; border-top: 1px solid #20315e; padding-top: 10px;">
   <button id="btn-handshake" disabled style="background: #a020f0; width: 100%;">Güvenli Anahtar Dağıt (RSA)</button>
+  <button id="btn-ecdh" disabled style="background: #ff9800; width: 100%; margin-top: 5px; color: #000;">Modern Handshake (ECDH)</button>
+  <button id="btn-ecies" disabled style="background: #00bcd4; width: 100%; margin-top: 5px; color: #000;">Anahtar Paketle (ECIES)</button>
 </div>
     </section>
 

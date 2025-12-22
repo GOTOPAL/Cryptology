@@ -4,10 +4,16 @@ import { registry } from './ciphers/registry.js';
 import { strToBytes, bytesToStr, bytesToB64, b64ToBytes, nowTs } from './util.js';
 
 import { RSAManager } from './rsa.js';
+import { ECDHManager } from './ecdh.js';
+import { ECIESManager } from './ecies.js';
+
+const otherEccKeys = {};
 
 const ui = new UI();
 const ws = new ChatWS();
 const rsa = new RSAManager(); // RSA başlat
+const ecdh = new ECDHManager();
+const ecies = new ECIESManager();
 const otherUsersKeys = {};
 let cipherInstance = null;
 let counter = 0; // gelecekteki algoritmalar için mesaj sayacı
@@ -33,18 +39,25 @@ function wire() {
       // 1. Bağlanır bağlanmaz RSA Anahtarlarını üret
       ui.addSystem("RSA Anahtarları üretiliyor...");
       const myPubKey = rsa.generateKeyPair();
-      
+      // ECC Anahtarlarını da üret (ECIES için gerekli)
+      const myEccHex = ecdh.generateKeys(); // ecdh manager içinde keyPair oluşur
       // 2. Benim Public Key'imi herkese duyur
       ws.send({
         type: 'signal',
-        subtype: 'pub_key',
-        payload: myPubKey
+        subtype: 'all_pub_keys',
+        payload: {
+          rsa: myPubKey,
+          ecc: myEccHex
+        }
+        
       });
       
       ui.addSystem("Public Key odaya dağıtıldı.");
       
       // Handshake butonunu aktif et
-      document.getElementById('btn-handshake').disabled = false;
+      document.getElementById('btn-handshake').disabled = false; // RSA
+      document.getElementById('btn-ecdh').disabled = false;      // ECDH
+      document.getElementById('btn-ecies').disabled = false; // ECIES
 
     } catch (e) {
       ui.addSystem('WS bağlanamadı: ' + e.message);
@@ -91,6 +104,55 @@ function wire() {
     ui.addSystem(`Şifreli anahtar ${users.length} kişiye gönderildi.`);
   });
 
+   // ECDH BUTONU (Modern Handshake)
+  document.getElementById('btn-ecdh').addEventListener('click', () => {
+    ui.addSystem("⚡ ECDH Süreci Başlatıldı...");
+    
+    // 1. Kendi parçamı oluştur
+    const myEcdhPub = ecdh.generateKeys();
+    
+    // 2. Herkese "Benim parçam bu, sizinkini verin" de
+    ws.send({
+      type: 'signal',
+      subtype: 'ecdh_offer',
+      payload: myEcdhPub
+    });
+    
+    ui.addSystem("ECDH Teklifi gönderildi. Cevap bekleniyor...");
+  });
+
+  // 4. ECIES BUTONU (YENİ EKLENEN KISIM)
+  document.getElementById('btn-ecies').addEventListener('click', () => {
+    // Rastgele bir anahtar üret
+    const randomKey = "KEY-" + Math.floor(Math.random() * 1000000);
+    ui.$sharedKey.value = randomKey;
+    refreshE2EE();
+    ui.addSystem(`ECIES için Anahtar Üretildi: ${randomKey}`);
+
+    // ECC Keyleri olan kullanıcıları bul
+    const users = Object.keys(otherEccKeys); 
+    if (users.length === 0) {
+        ui.addSystem("Kimsenin ECC anahtarı yok. (Sayfayı yenileyip tekrar bağlanın)");
+        return;
+    }
+
+    users.forEach(user => {
+        const targetEccPub = otherEccKeys[user];
+        
+        // ECIES ile şifrele (Paketle)
+        const packageData = ecies.encrypt(targetEccPub, randomKey);
+        
+        if (packageData) {
+            ws.send({
+                type: 'signal',
+                subtype: 'ecies_package',
+                target: user,
+                payload: packageData
+            });
+        }
+    });
+    ui.addSystem(`ECIES Paketi ${users.length} kişiye yollandı.`);
+  });
 
   ui.$btnDisconnect.addEventListener('click', () => ws.disconnect());
   ui.$cipherName.addEventListener('change', refreshE2EE);
@@ -115,19 +177,33 @@ function wire() {
     if (msg.type === 'system') {
       ui.addSystem(msg.message || 'sistem');
       
-      // YENİ: Biri odaya katıldığında (joined), ona Public Key'imi gönderiyorum ki beni tanısın
-      if (msg.event === 'joined' && rsa.publicKey) {
-         ws.send({ type: 'signal', subtype: 'pub_key', payload: rsa.publicKey });
+    // 2. Sadece RSA değil, ECC anahtarını da yolluyoruz
+      if (msg.event === 'joined' && rsa.publicKey && ecdh.keyPair) {
+         const myEccHex = ecdh.keyPair.getPublic().encode('hex');
+         
+         ws.send({ 
+            type: 'signal', 
+            subtype: 'all_pub_keys', // 'pub_key' yerine bunu kullanıyoruz
+            payload: { 
+                rsa: rsa.publicKey, 
+                ecc: myEccHex 
+            } 
+         });
       }
       return;
     }
 
     // 2. YENİ EKLENEN KISIM: SİNYAL (RSA) MESAJLARI
     if (msg.type === 'signal') {
-        // Biri Public Key paylaştı
-        if (msg.subtype === 'pub_key') {
-            otherUsersKeys[msg.from] = msg.payload;
-            ui.addSystem(`${msg.from} kullanıcısının Public Key'i alındı.`);
+       // YENİ: Toplu Anahtar Dağıtımı
+        if (msg.subtype === 'all_pub_keys') {
+            // RSA Key'i kaydet (Eski sistem çalışsın)
+            otherUsersKeys[msg.from] = msg.payload.rsa;
+            
+            // ECC Key'i kaydet (Yeni sistem için)
+            otherEccKeys[msg.from] = msg.payload.ecc;
+            
+            ui.addSystem(`${msg.from} kullanıcısının RSA ve ECC anahtarları alındı.`);
         }
         
         // Biri bana şifreli AES anahtarı attı
@@ -147,6 +223,71 @@ function wire() {
                 }, 1500);
             }
         }
+
+        if (msg.subtype === 'ecdh_offer') {
+            ui.addSystem(`⚡ ${msg.from} ECDH teklifi yaptı.`);
+            
+            // 1. Bob kendi parçalarını oluşturur
+            const myEcdhPub = ecdh.generateKeys();
+            
+            // 2. Alice'in parçasıyla hesaplama yapar
+            const sharedSecret = ecdh.computeSecret(msg.payload);
+            
+            // 3. Hesaplanan sırrı kutuya yazar (Sadece ilk 32 karakteri alalım, çok uzun olmasın)
+            const finalKey = "ECDH-" + sharedSecret.substring(0, 10);
+            ui.$sharedKey.value = finalKey;
+            refreshE2EE();
+            
+            // 4. Bob, Alice'e kendi parçasını gönderir
+            ws.send({
+                type: 'signal',
+                subtype: 'ecdh_answer',
+                payload: myEcdhPub,
+                target: msg.from // Sadece teklif yapana dön
+            });
+            
+            ui.addSystem(`Ortak Sır Hesaplandı: ${finalKey}`);
+            // Yeşil efekt
+            ui.$sharedKey.style.backgroundColor = "#ff9800";
+            setTimeout(() => ui.$sharedKey.style.backgroundColor = "", 1500);
+        }
+
+        // YENİ: ECDH Cevabı Geldi (Bob cevap verdi, Alice hesaplıyor)
+        if (msg.subtype === 'ecdh_answer') {
+             // Alice, Bob'un parçasını alır ve hesaplar
+             const sharedSecret = ecdh.computeSecret(msg.payload);
+             
+             const finalKey = "ECDH-" + sharedSecret.substring(0, 10);
+             ui.$sharedKey.value = finalKey;
+             refreshE2EE();
+
+             ui.addSystem(`${msg.from} ile Ortak Sır Hesaplandı: ${finalKey}`);
+             
+             // Yeşil efekt
+             ui.$sharedKey.style.backgroundColor = "#ff9800";
+             setTimeout(() => ui.$sharedKey.style.backgroundColor = "", 1500);
+        }
+
+        if (msg.subtype === 'ecies_package') {
+             // msg.payload şudur: { ephemeralPub, ciphertext }
+             
+             // Çözmek için kendi Private Key'im lazım (ecdh nesnesinin içinde)
+             // ecdh.keyPair.getPrivate('hex') ile alabiliriz
+             const myPriv = ecdh.keyPair.getPrivate('hex');
+             
+             const decryptedKey = ecies.decrypt(myPriv, msg.payload);
+             
+             if (decryptedKey) {
+                ui.$sharedKey.value = decryptedKey;
+                refreshE2EE();
+                ui.addSystem(`${msg.from} ECIES ile GÜVENLİ ANAHTAR yolladı: ${decryptedKey}`);
+                ui.$sharedKey.style.backgroundColor = "#00bcd4"; // Mavi
+                setTimeout(() => ui.$sharedKey.style.backgroundColor = "", 1500);
+             } else {
+                 ui.addSystem(`ECIES Çözme Hatası!`);
+             }
+        }
+        
         return;
     }
 
@@ -174,7 +315,6 @@ function sendNow() {
   const ct = cipherInstance.encrypt(pt, counter);
   const b64 = bytesToB64(ct);
 
-  // DEĞİŞEN KISIM BURASI:
   // Sabit 'caesar' yerine, arayüzden seçili olan ismi (cipherName) gönderiyoruz.
   const { cipherName } = ui.getValues(); 
   ws.sendChat(b64, { name: cipherName, counter });
