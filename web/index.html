@@ -6,6 +6,7 @@
 <title>Kriptoloji E2EE Chat (Multi-Algo)</title>
   <link rel="stylesheet" href="./css/styles.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.3.2/jsencrypt.min.js"></script>
 </head>
 <body>
   <div class="container">
@@ -33,12 +34,13 @@
     <option value="hill">Hill (Matris)</option>
     <option value="columnar">Columnar</option>
     <option value="railfence">Rail Fence</option>
-    <option value="polybius">Polybius (16x16 Grid)</option> </select>
-    <option value="pigpen">Pigpen (Mason)</option> </select>
+    <option value="polybius">Polybius (16x16 Grid)</option> 
+    <option value="pigpen">Pigpen (Mason)</option> 
     <option value="des_lib">DES (CryptoJS Library)</option>
     <option value="des_pure">DES (Pure Implementation)</option>
     <option value="aes_lib">AES-256 (CryptoJS Lib)</option>
     <option value="aes_pure">AES-128 (Pure - Manuel)</option>
+  </select>
 </label>
 
 <label>Paylaşılan Anahtar
@@ -54,6 +56,9 @@
         <button id="btn-connect">Bağlan</button>
         <button id="btn-disconnect" disabled>Kes</button>
       </div>
+      <div style="margin-top: 10px; border-top: 1px solid #20315e; padding-top: 10px;">
+  <button id="btn-handshake" disabled style="background: #a020f0; width: 100%;">Güvenli Anahtar Dağıt (RSA)</button>
+</div>
     </section>
 
     <section class="panel">

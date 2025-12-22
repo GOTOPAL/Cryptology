@@ -86,6 +86,24 @@ async def handler(ws: WebSocketServerProtocol):
                 await broadcast_to_room(room, out, exclude=ws)
                 continue
 
+            if mtype == "signal":
+                meta = CONN_META.get(ws)
+                if not meta:
+                    continue
+                room = meta["room"]
+                username = meta["username"]
+
+                # Sinyali odadaki diğerlerine ilet
+                out = {
+                    "type": "signal",
+                    "subtype": msg.get("subtype"), # 'pub_key' veya 'session_key'
+                    "from": username,
+                    "payload": msg.get("payload"),
+                    "target": msg.get("target") # Eğer özel bir kişiye gidiyorsa (Opsiyonel)
+                }
+                await broadcast_to_room(room, out, exclude=ws)
+                continue
+
             if mtype == "ping":
                 await ws.send(json.dumps({"type":"pong"}))
                 continue
