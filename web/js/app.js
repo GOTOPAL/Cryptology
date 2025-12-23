@@ -154,6 +154,60 @@ function wire() {
     ui.addSystem(`ECIES Paketi ${users.length} kişiye yollandı.`);
   });
 
+
+
+  document.getElementById('btn-send-file').addEventListener('click', () => {
+    const fileInput = document.getElementById('file-input');
+    const file = fileInput.files[0];
+    
+    // Kontroller
+    if (!file) { ui.addSystem("Lütfen önce bir dosya seçin."); return; }
+    if (!ws.connected) { ui.addSystem("Bağlı değilsiniz."); return; }
+    if (!cipherInstance) { ui.addSystem("E2EE hazır değil. Önce anahtar anlaşması yapın."); return; }
+
+    // Uyarı: Basit şifreler dosyayı bozar
+    const { cipherName } = ui.getValues();
+    if (['caesar', 'vigenere', 'rotate', 'hill', 'railfence', 'polybius'].includes(cipherName)) {
+        ui.addSystem(`HATA: ${cipherName} algoritması dosya şifreleyemez! Dosya bozulur. Lütfen AES veya DES seçin.`);
+        return;
+    }
+
+    // Dosyayı Binary (Byte Dizisi) Olarak Oku
+    const reader = new FileReader();
+    
+    reader.onload = function(evt) {
+        const rawData = new Uint8Array(evt.target.result);
+        ui.addSystem(`Dosya okunuyor (${file.name}, ${rawData.length} bytes)...`);
+
+        try {
+            // 1. Şifrele (Seçili algoritma ile)
+            const encryptedData = cipherInstance.encrypt(rawData, counter);
+            
+            // 2. Base64'e çevir (Ağdan metin olarak geçmesi için)
+            const b64Data = bytesToB64(encryptedData);
+
+            // 3. Sunucuya Gönder
+            ws.send({
+                type: 'file',
+                filename: file.name,
+                mime: file.type,
+                payload: b64Data,
+                cipher: { name: cipherName, counter: counter }
+            });
+            
+            ui.addSystem(`Dosya şifrelendi ve gönderildi: ${file.name}`);
+            counter++; // Sayacı artır
+            
+        } catch (e) {
+            console.error(e);
+            ui.addSystem("Dosya şifreleme hatası: " + e.message);
+        }
+    };
+    
+    // Okumayı başlat
+    reader.readAsArrayBuffer(file);
+  });
+
   ui.$btnDisconnect.addEventListener('click', () => ws.disconnect());
   ui.$cipherName.addEventListener('change', refreshE2EE);
   ui.$sharedKey.addEventListener('input', refreshE2EE);
@@ -291,6 +345,55 @@ function wire() {
         return;
     }
 
+    // --- DOSYA ALMA KISMI (YENİ) ---
+    if (msg.type === 'file') {
+        if (!cipherInstance) { ui.addSystem(`Dosya geldi ama şifre çözücü hazır değil: ${msg.filename}`); return; }
+
+        try {
+            ui.addSystem(`${msg.from} şifreli dosya gönderdi: ${msg.filename}. Çözülüyor...`);
+
+            // 1. Base64'ten Byte'a çevir
+            const encryptedBytes = b64ToBytes(msg.payload);
+            
+            // 2. Şifreyi Çöz (Aynı anahtar ve sayaç ile)
+            const decryptedBytes = cipherInstance.decrypt(encryptedBytes, msg.cipher?.counter || 0);
+            
+            // 3. Byte'ları Blob'a (Sanal Dosya) çevir
+            const blob = new Blob([decryptedBytes], { type: msg.mime });
+            
+            // 4. İndirme Linki Oluştur
+            const url = URL.createObjectURL(blob);
+            
+            // 5. Ekrana Bas (HTML Hack ile mesaja ekle)
+            let htmlContent = `<div><strong>Dosya:</strong> ${msg.filename}</div>`;
+            
+            // Eğer resimse önizleme göster
+            if (msg.mime.startsWith('image/')) {
+                htmlContent += `<img src="${url}" style="max-width: 200px; border-radius: 8px; margin-top: 5px; display:block;">`;
+            }
+            
+            htmlContent += `<div style="margin-top:5px;"><a href="${url}" download="${msg.filename}" style="color: #00bcd4; text-decoration: underline;">İndir / Kaydet</a></div>`;
+            
+            // Mesaj baloncuğu olarak ekle
+            ui.addIncoming(msg.from, "DOSYA"); 
+            
+            // Son eklenen mesajın içeriğini HTML ile değiştir
+            setTimeout(() => {
+                const messagesDiv = document.getElementById('messages');
+                const lastMsg = messagesDiv.lastElementChild;
+                if(lastMsg) {
+                    const contentDiv = lastMsg.querySelector('.text') || lastMsg; 
+                    contentDiv.innerHTML = htmlContent;
+                }
+            }, 10);
+            
+        } catch (e) {
+            console.error(e);
+            ui.addSystem(`Dosya şifresi çözülemedi: ${e.message}`);
+        }
+        return;
+    }
+
     // 3. CHAT MESAJLARI
     if (msg.type === 'chat') {
       if (!cipherInstance) { ui.addSystem('E2EE hazır değil, mesaj çözülemedi.'); return; }
@@ -315,7 +418,7 @@ function sendNow() {
   const ct = cipherInstance.encrypt(pt, counter);
   const b64 = bytesToB64(ct);
 
-  // Sabit 'caesar' yerine, arayüzden seçili olan ismi (cipherName) gönderiyoruz.
+  // arayüzden seçili olan ismi (cipherName) gönderiyoruz.
   const { cipherName } = ui.getValues(); 
   ws.sendChat(b64, { name: cipherName, counter });
   

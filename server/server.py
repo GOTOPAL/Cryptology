@@ -86,6 +86,24 @@ async def handler(ws: WebSocketServerProtocol):
                 await broadcast_to_room(room, out, exclude=ws)
                 continue
 
+
+            if mtype == "file":
+                meta = CONN_META.get(ws)
+                if not meta:
+                    continue # Kim olduğu belli değilse yoksay
+                
+                # Dosya verisini hazırla ve odaya dağıt
+                out = {
+                    "type": "file",
+                    "from": meta["username"],
+                    "filename": msg.get("filename"), # Örn: "resim.png"
+                    "mime": msg.get("mime"),         # Örn: "image/png"
+                    "payload": msg.get("payload"),   # Şifreli dosya verisi (Base64)
+                    "cipher": msg.get("cipher")      # Hangi şifreyle şifrelendiği
+                }
+                await broadcast_to_room(meta["room"], out, exclude=ws)
+                continue
+
             if mtype == "signal":
                 meta = CONN_META.get(ws)
                 if not meta:
